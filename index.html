@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Calculadora de equivalencias de alimentos de @rodri.strengthcoach: cambia un alimento por otro con los mismos macros.">
+<meta name="theme-color" content="#FFFFFF">
+<title>Calculadora de equivalencias</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Kanit:ital,wght@1,700;1,800;1,900&family=Poppins:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: una columna tipo app de bolsillo — tarjeta de entrada arriba, lista de intercambios debajo */
+:root {
+  --bg: #FFFFFF;
+  --surface: #FFFFFF;
+  --tint: #F6F3EA;
+  --ink: #141414;
+  --muted: #5C5C5C;
+  --soft: #8C8A84;
+  --line: #E7E3D8;
+  --gold: #D9B25C;
+  --gold-ink: #86641C;
+  --dot: #DAD7CF;
+  --warn: #B4471F;
+  --warn-bg: #FBEDE6;
+  --ok: #3F6E3A;
+  --ok-bg: #EAF2E6;
+  --shadow: 0 10px 30px rgba(20, 20, 20, .07), 0 2px 6px rgba(20, 20, 20, .05);
+  --display: 'Kanit', 'Arial Black', 'Helvetica Neue', Arial, sans-serif;
+  --body: 'Poppins', 'Helvetica Neue', Arial, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+/* Siempre en blanco, también con el móvil en modo oscuro */
+:root, :root[data-theme="dark"] { color-scheme: light; }
+
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5;
+  position: relative;
+}
+.wrap {
+  max-width: 720px; margin: 0 auto;
+  padding-block: 28px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 22px;
+}
+/* Trama de puntos como en los PDF: cubre la mitad superior y se funde en blanco */
+.dots-fade { position: absolute; inset: 0 0 auto 0; height: max(60vh, 820px); pointer-events: none; z-index: 0;
+  background-image: radial-gradient(circle, #C9C6BE 1.3px, transparent 1.8px); background-size: 13px 13px; background-position: 6px 6px;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,.75) 35%, rgba(0,0,0,.3) 70%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,.75) 35%, rgba(0,0,0,.3) 70%, transparent 100%); }
+header { padding: 8px 0; }
+header::before { content: ""; position: absolute; z-index: -1; inset: -18px -24px -14px -28px; pointer-events: none;
+  background: radial-gradient(closest-side, var(--bg) 0%, var(--bg) 62%, rgba(255,255,255,.75) 82%, rgba(255,255,255,0) 100%); }
+header, main, footer { position: relative; z-index: 1; }
+
+.eyebrow { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: var(--muted); }
+.eyebrow::before { content: ""; width: 26px; height: 2px; background: var(--gold); }
+h1 { font-family: var(--display); font-style: italic; font-weight: 900; text-transform: uppercase; letter-spacing: -.01em;
+     font-size: clamp(34px, 9vw, 56px); line-height: .95; margin: 10px 0 0; text-wrap: balance; }
+.hl { text-shadow: .07em .06em 0 var(--gold); }
+.sub { margin: 12px 0 0; color: var(--muted); font-style: italic; max-width: 56ch; }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.label { font-size: 11px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--soft); }
+.row { display: grid; grid-template-columns: 1fr 150px; gap: 12px; align-items: end; }
+@media (max-width: 520px) { .row { grid-template-columns: 1fr; } }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+select, input[type="number"], input[type="search"] {
+  font: inherit; color: var(--ink); background: var(--tint); border: 1px solid var(--line); border-radius: 12px;
+  padding: 12px 14px; width: 100%; min-width: 0; appearance: none; -webkit-appearance: none;
+}
+select { background-image: linear-gradient(45deg, transparent 50%, var(--gold-ink) 50%), linear-gradient(135deg, var(--gold-ink) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 52%, calc(100% - 14px) 52%; background-size: 6px 6px; background-repeat: no-repeat; padding-right: 36px; font-weight: 600; }
+select:focus, input:focus, button:focus-visible, a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.grams { display: flex; align-items: stretch; background: var(--tint); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.grams input { border: 0; background: transparent; text-align: center; font-family: var(--mono); font-weight: 600; font-size: 18px; padding: 10px 4px; -moz-appearance: textfield; }
+.grams input::-webkit-outer-spin-button, .grams input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.grams button { border: 0; background: transparent; color: var(--gold-ink); font: 700 20px/1 var(--body); width: 44px; cursor: pointer; }
+.grams button:active { background: var(--line); }
+.grams .unit { align-self: center; font-size: 12px; color: var(--soft); padding-right: 10px; }
+.hint { font-size: 12.5px; color: var(--soft); margin-top: -6px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 600 13px/1 var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.stat { padding: 12px 10px; border-right: 1px solid var(--line); background: var(--tint); }
+.stat:last-child { border-right: 0; }
+.stat .v { font-family: var(--display); font-style: italic; font-weight: 800; font-size: 24px; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat .k { font-size: 10.5px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; color: var(--soft); margin-top: 4px; }
+.stat.on { background: var(--surface); box-shadow: inset 0 -3px 0 var(--gold); }
+
+.results-head { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: end; justify-content: space-between; }
+.results-head h2 { font-family: var(--display); font-style: italic; font-weight: 800; text-transform: uppercase; font-size: clamp(22px, 5.5vw, 30px); line-height: 1; margin: 6px 0 0; text-wrap: balance; }
+.results-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; width: 100%; }
+.results-tools input { flex: 1 1 200px; padding: 10px 14px; }
+.toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
+.toggle button { font: 600 12.5px/1 var(--body); border: 0; background: transparent; color: var(--muted); padding: 10px 14px; cursor: pointer; }
+.toggle button[aria-pressed="true"] { background: var(--gold); color: #141414; }
+
+.list { display: flex; flex-direction: column; gap: 10px; }
+.item { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; align-items: center; }
+.item .name { font-weight: 700; font-size: 15px; line-height: 1.3; min-width: 0; }
+.item .name a { color: inherit; text-decoration: none; }
+.item .name a:hover { text-decoration: underline; text-decoration-color: var(--gold); }
+.item .brand { font-weight: 400; color: var(--soft); font-size: 12px; margin-left: 6px; }
+.item .g { grid-row: span 2; text-align: right; font-family: var(--display); font-style: italic; font-weight: 900; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.item .g small { font-family: var(--body); font-style: normal; font-weight: 600; font-size: 13px; color: var(--soft); margin-left: 2px; }
+.item .meta { font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; min-width: 0; }
+.item .mono { font-family: var(--mono); font-size: 12px; }
+.tag { font: 600 11.5px/1 var(--body); padding: 5px 8px; border-radius: 999px; background: var(--tint); color: var(--muted); white-space: nowrap; }
+.tag.warn { background: var(--warn-bg); color: var(--warn); }
+.tag.ok { background: var(--ok-bg); color: var(--ok); }
+.empty { text-align: center; color: var(--soft); padding: 26px 10px; border: 1px dashed var(--line); border-radius: 16px; }
+
+.how { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+@media (max-width: 620px) { .how { grid-template-columns: 1fr; } }
+.how div { background: var(--tint); border-radius: 14px; padding: 14px; font-size: 13.5px; color: var(--muted); }
+.how b { display: block; font-family: var(--display); font-style: italic; font-weight: 800; font-size: 20px; color: var(--gold-ink); line-height: 1; margin-bottom: 6px; }
+
+footer { font-size: 12.5px; color: var(--soft); border-top: 1px solid var(--line); padding-top: 16px; display: flex; flex-direction: column; gap: 6px; }
+footer a { color: var(--gold-ink); }
+.brandline { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px; font-family: var(--mono); font-size: 12px; letter-spacing: .08em; color: var(--muted); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .item { animation: rise .25s ease both; }
+  @keyframes rise { from { transform: translateY(4px); opacity: .6; } to { transform: none; opacity: 1; } }
+}
+</style>
+
+<style>[hidden]{display:none!important} img{max-width:100%} :root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+</head>
+<body>
+<div class="dots-fade"></div>
+<div class="wrap">
+  <header>
+    <span class="eyebrow">@rodri.strengthcoach</span>
+    <h1>Calculadora de <span class="hl">equivalencias</span></h1>
+    <p class="sub">Cambia un alimento de tu plan por otro sin descuadrar la dieta. Elige lo que tienes, cuántos gramos, y te digo cuánto comer del resto.</p>
+  </header>
+
+  <main style="display:flex;flex-direction:column;gap:22px">
+    <section class="panel" aria-label="Alimento de tu plan">
+      <div class="row">
+        <div class="field">
+          <label class="label" for="food">Lo que tienes en tu plan</label>
+          <select id="food"></select>
+        </div>
+        <div class="field">
+          <label class="label" for="grams">Cantidad</label>
+          <div class="grams">
+            <button type="button" id="minus" aria-label="Restar 5 gramos">−</button>
+            <input id="grams" type="number" inputmode="decimal" min="1" max="2000" step="1" value="80">
+            <span class="unit">g</span>
+            <button type="button" id="plus" aria-label="Sumar 5 gramos">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="hint" id="foodHint"></div>
+
+      <div class="field">
+        <span class="label" id="macroLabel">Igualar por</span>
+        <div class="chips" role="group" aria-labelledby="macroLabel" id="macroChips">
+          <button type="button" class="chip" data-m="auto" aria-pressed="true">Automático</button>
+          <button type="button" class="chip" data-m="p" aria-pressed="false">Proteína</button>
+          <button type="button" class="chip" data-m="c" aria-pressed="false">Hidratos</button>
+          <button type="button" class="chip" data-m="f" aria-pressed="false">Grasa</button>
+          <button type="button" class="chip" data-m="k" aria-pressed="false">Calorías</button>
+        </div>
+      </div>
+
+      <div class="stats" id="stats" aria-live="polite"></div>
+    </section>
+
+    <section aria-labelledby="resTitle" style="display:flex;flex-direction:column;gap:14px">
+      <div class="results-head">
+        <div>
+          <span class="eyebrow" id="resEyebrow">Equivale a</span>
+          <h2 id="resTitle"></h2>
+        </div>
+        <div class="results-tools">
+          <input id="filter" type="search" placeholder="Buscar alimento…" aria-label="Filtrar la lista de equivalencias">
+          <div class="toggle" role="group" aria-label="Qué alimentos mostrar">
+            <button type="button" data-scope="group" aria-pressed="true">Su grupo</button>
+            <button type="button" data-scope="all" aria-pressed="false">Todos</button>
+          </div>
+        </div>
+      </div>
+      <div class="list" id="list"></div>
+    </section>
+
+    <section class="how" aria-label="Cómo usarla">
+      <div><b>01</b>Elige el alimento y los gramos que pone en tu plan.</div>
+      <div><b>02</b>Mira la lista: arriba salen los cambios que menos alteran el resto de macros.</div>
+      <div><b>03</b>Si sale una etiqueta en naranja, ese cambio mete bastante más (o menos) de otro macro. Úsalo de vez en cuando.</div>
+    </section>
+  </main>
+
+  <footer>
+    <p style="margin:0">Valores nutricionales por 100 g de productos reales de <a href="https://es.openfoodfacts.org" target="_blank" rel="noopener">Open Food Facts</a> (licencia ODbL). Toca el nombre de un alimento para ver su ficha. Arroz, pasta, avena, quinoa, carnes y pescados en <b>peso crudo</b>; legumbres de bote escurridas. Las unidades (huevo, rebanada, tortita…) son aproximadas.</p>
+    <p style="margin:0">Herramienta orientativa: tu plan y mis indicaciones van por delante.</p>
+    <div class="brandline"><span>Rodrigo Álamo · Strength coach</span><span>@rodri.strengthcoach</span></div>
+  </footer>
+</div>
+
+<script>
+(function () {
+  // Datos por 100 g tomados de fichas de Open Food Facts (código = código de barras de la ficha).
+  // g: grupo principal (p proteína, c hidratos, f grasa). u: unidad aproximada [singular, plural, gramos].
+  var FOODS = [
+    { id: 'pollo', n: 'Pechuga de pollo', b: 'Hacendado', g: 'p', k: 108, p: 22, c: 0.5, f: 1.8, code: '2302787004362' },
+    { id: 'pavo', n: 'Pechuga de pavo (filete)', b: 'Procavi', g: 'p', k: 112, p: 25.1, c: 0, f: 1.3, code: '2302794004119' },
+    { id: 'ternera', n: 'Carne picada de vacuno', b: 'Medina', g: 'p', k: 190, p: 18, c: 2.4, f: 12, code: '8436569263235' },
+    { id: 'lomo', n: 'Lomo de cerdo (filetes)', b: 'Hacendado', g: 'p', k: 152, p: 18, c: 0, f: 8.9, code: '2302714002713' },
+    { id: 'atun', n: 'Atún claro al natural', b: 'Hacendado', g: 'p', k: 99, p: 21, c: 0.9, f: 1.2, code: '8480000180186' },
+    { id: 'salmon', n: 'Salmón (lomos)', b: 'Leroy', g: 'p', k: 223, p: 20, c: 0, f: 16, code: '8480000245113' },
+    { id: 'merluza', n: 'Merluza (filetes)', b: 'Hacendado', g: 'p', k: 82, p: 18, c: 0.5, f: 1.2, code: '8480000622280' },
+    { id: 'huevo', n: 'Huevos', b: 'Hacendado', g: 'p', k: 150, p: 12.5, c: 0.5, f: 11.1, code: '8411384100026', u: ['huevo L', 'huevos L', 60] },
+    { id: 'claras', n: 'Claras de huevo', b: 'Guillén', g: 'p', k: 42, p: 11, c: 0.5, f: 0.5, code: '8411384100941', u: ['clara', 'claras', 33] },
+    { id: 'whey', n: 'Proteína whey', b: 'Myprotein', g: 'p', k: 379, p: 72, c: 8.9, f: 5.9, code: '5055534302941', u: ['cacito', 'cacitos', 25] },
+    { id: 'yogurprot', n: 'Yogur +proteínas natural', b: 'Hacendado', g: 'p', k: 52, p: 10, c: 3.1, f: 0.4, code: '8480000209085', u: ['yogur', 'yogures', 120] },
+    { id: 'batido', n: 'Queso fresco batido 0%', b: 'Hacendado', g: 'p', k: 46, p: 8, c: 3.5, f: 0.5, code: '8480000510716' },
+    { id: 'pavococido', n: 'Pechuga de pavo cocida (fiambre)', b: 'Hacendado', g: 'p', k: 89, p: 19.5, c: 0.9, f: 1.3, code: '8480000057105' },
+    { id: 'jamon', n: 'Jamón serrano', b: 'Hacendado', g: 'p', k: 227, p: 35.7, c: 0.5, f: 9.5, code: '8402001001796' },
+    { id: 'tofu', n: 'Tofu firme', b: 'Hacendado', g: 'p', k: 110, p: 11.1, c: 0.9, f: 6.9, code: '8480000383150' },
+
+    { id: 'arroz', n: 'Arroz redondo (crudo)', b: 'Hacendado', g: 'c', k: 344, p: 8.2, c: 75, f: 1, code: '8480000050441' },
+    { id: 'basmati', n: 'Arroz basmati (crudo)', b: 'Hacendado', g: 'c', k: 355, p: 9, c: 78, f: 0.6, code: '8480000050021' },
+    { id: 'pasta', n: 'Pasta, macarrones (crudo)', b: 'Hacendado', g: 'c', k: 361, p: 13, c: 72, f: 1.5, code: '8480000062505' },
+    { id: 'avena', n: 'Copos de avena', b: 'Hacendado', g: 'c', k: 370, p: 14, c: 58, f: 6.5, code: '8402001022135' },
+    { id: 'panmolde', n: 'Pan de molde 100% integral', b: 'Hacendado', g: 'c', k: 265, p: 10.6, c: 45.9, f: 3.4, code: '8480000678065', u: ['rebanada', 'rebanadas', 30] },
+    { id: 'barra', n: 'Barra de pan', b: 'Hacendado', g: 'c', k: 267, p: 8.6, c: 55, f: 1, code: '8480000832023' },
+    { id: 'tortitas', n: 'Tortitas de arroz', b: 'Hacendado', g: 'c', k: 363, p: 8.5, c: 75, f: 2.8, code: '8480000140135', u: ['tortita', 'tortitas', 8] },
+    { id: 'cremaarroz', n: 'Crema de arroz', b: 'HSN', g: 'c', k: 369, p: 7.5, c: 83, f: 0.8, code: '5056329508838' },
+    { id: 'patata', n: 'Patata (cruda)', b: 'Hacendado', g: 'c', k: 70, p: 1.7, c: 15.7, f: 0.1, code: '8424717004007' },
+    { id: 'boniato', n: 'Boniato (crudo)', b: 'Meléndez', g: 'c', k: 81, p: 0, c: 19, f: 0, code: '8437009107898' },
+    { id: 'cornflakes', n: 'Corn flakes', b: 'Hacendado', g: 'c', k: 378, p: 6.3, c: 84, f: 1.1, code: '8480000093622' },
+    { id: 'garbanzos', n: 'Garbanzos cocidos (bote)', b: 'Hacendado', g: 'c', k: 90, p: 5.5, c: 9.5, f: 2.2, code: '8480000260291' },
+    { id: 'platano', n: 'Plátano de Canarias', b: 'Cultivar', g: 'c', k: 93, p: 1.4, c: 21.7, f: 0.49, code: '24098984', u: ['plátano mediano', 'plátanos medianos', 110] },
+    { id: 'quinoa', n: 'Quinoa (cruda)', b: 'Hacendado', g: 'c', k: 389, p: 14, c: 66.05, f: 6.1, code: '8480000094308' },
+
+    { id: 'aove', n: 'Aceite de oliva virgen extra', b: 'Hacendado', g: 'f', k: 819, p: 0, c: 0, f: 91, code: '8480000047458', u: ['cucharada', 'cucharadas', 10] },
+    { id: 'aguacate', n: 'Aguacate Hass', b: 'Eurobanan', g: 'f', k: 205, p: 1.56, c: 0.83, f: 20.6, code: '8422837145136' },
+    { id: 'almendras', n: 'Almendras naturales', b: 'Hacendado', g: 'f', k: 642, p: 25.2, c: 5.9, f: 54.8, code: '8480000348654' },
+    { id: 'nueces', n: 'Nueces peladas', b: 'Hacendado', g: 'f', k: 716, p: 17, c: 2.2, f: 69.6, code: '8480000340245' },
+    { id: 'cacahuete', n: 'Crema de cacahuete 100%', b: 'Hacendado', g: 'f', k: 607, p: 30, c: 12, f: 46.7, code: '8480000168832', u: ['cucharada', 'cucharadas', 15] },
+    { id: 'choco85', n: 'Chocolate negro 85%', b: 'Hacendado', g: 'f', k: 576, p: 12, c: 22, f: 46, code: '8480000124920' }
+  ];
+
+  var GROUPS = { p: 'Proteína', c: 'Hidratos', f: 'Grasas' };
+  var MACRO = { p: 'proteína', c: 'hidratos', f: 'grasa', k: 'calorías' };
+  var SHORT = { p: 'P', c: 'H', f: 'G' };
+  // densidad mínima (por 100 g) para que un alimento cuente como fuente de ese macro
+  var MIN_DENSITY = { p: 5, c: 8, f: 8, k: 30 };
+
+  var byId = {};
+  FOODS.forEach(function (x) { byId[x.id] = x; });
+
+  var state = { food: 'arroz', grams: 80, macro: 'auto', scope: 'group', filter: '' };
+  try {
+    var saved = JSON.parse(localStorage.getItem('rodri-equivalencias') || 'null');
+    if (saved && byId[saved.food]) { state.food = saved.food; state.grams = saved.grams || state.grams; state.macro = saved.macro || 'auto'; state.scope = saved.scope || 'group'; }
+  } catch (e) { /* sin almacenamiento: usamos los valores por defecto */ }
+
+  var $ = function (id) { return document.getElementById(id); };
+  var foodSel = $('food'), gramsIn = $('grams');
+
+  // Rellenar el desplegable por grupos
+  ['p', 'c', 'f'].forEach(function (g) {
+    var og = document.createElement('optgroup');
+    og.label = GROUPS[g];
+    FOODS.filter(function (x) { return x.g === g; }).forEach(function (x) {
+      var o = document.createElement('option');
+      o.value = x.id; o.textContent = x.n;
+      og.appendChild(o);
+    });
+    foodSel.appendChild(og);
+  });
+
+  function fmt(n, d) {
+    if (d === undefined) d = n < 10 ? 1 : 0;
+    var s = (Math.round(n * Math.pow(10, d)) / Math.pow(10, d)).toFixed(d);
+    return s.replace('.', ',').replace(/,0$/, '');
+  }
+  function roundGrams(g) {
+    if (g < 30) return Math.round(g);
+    if (g < 200) return Math.round(g / 5) * 5;
+    return Math.round(g / 10) * 10;
+  }
+  function portion(food, g) {
+    return { k: food.k * g / 100, p: food.p * g / 100, c: food.c * g / 100, f: food.f * g / 100 };
+  }
+  function macroFor(food) { return state.macro === 'auto' ? food.g : state.macro; }
+
+  // Gramos de "target" que aportan lo mismo de "m" que "grams" de "src"
+  function equivalent(src, grams, target, m) {
+    var need = src[m] * grams / 100;
+    if (target[m] <= 0) return null;
+    return need / target[m] * 100;
+  }
+
+  function unitText(food, g) {
+    if (!food.u) return '';
+    var n = g / food.u[2];
+    var r = n < 3 ? Math.round(n * 2) / 2 : Math.round(n);
+    if (r <= 0) return '';
+    return '≈ ' + fmt(r, r % 1 ? 1 : 0) + ' ' + (r === 1 ? food.u[0] : food.u[1]);
+  }
+
+  function renderStats(src, g, m) {
+    var po = portion(src, g);
+    var cells = [['k', fmt(po.k, 0), 'kcal'], ['p', fmt(po.p), 'Proteína'], ['c', fmt(po.c), 'Hidratos'], ['f', fmt(po.f), 'Grasa']];
+    $('stats').innerHTML = cells.map(function (c) {
+      return '<div class="stat' + (c[0] === m ? ' on' : '') + '"><div class="v">' + c[1] + (c[0] === 'k' ? '' : '<span style="font-size:14px"> g</span>') + '</div><div class="k">' + c[2] + '</div></div>';
+    }).join('');
+  }
+
+  function render() {
+    var src = byId[state.food];
+    var g = Math.max(1, Math.min(2000, Number(state.grams) || 0));
+    var m = macroFor(src);
+
+    foodSel.value = src.id;
+    if (document.activeElement !== gramsIn) gramsIn.value = g;
+    document.querySelectorAll('#macroChips .chip').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.m === state.macro)); });
+    document.querySelectorAll('.toggle button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.scope === state.scope)); });
+
+    var u = unitText(src, g);
+    $('foodHint').textContent = src.b + (u ? ' · ' + u : '') + ' · por 100 g: ' + fmt(src.k, 0) + ' kcal · P ' + fmt(src.p) + ' · H ' + fmt(src.c) + ' · G ' + fmt(src.f);
+    renderStats(src, g, m);
+
+    var srcPortion = portion(src, g);
+    var amount = m === 'k' ? fmt(srcPortion.k, 0) + ' kcal' : fmt(srcPortion[m]) + ' g de ' + MACRO[m];
+    $('resTitle').textContent = 'Opciones con ' + amount;
+    $('resEyebrow').textContent = fmt(g, 0) + ' g de ' + src.n.toLowerCase() + ' equivalen a';
+
+    var q = state.filter.trim().toLowerCase();
+    var others = m === 'k' ? ['p', 'c', 'f'] : ['p', 'c', 'f'].filter(function (x) { return x !== m; });
+
+    var rows = FOODS.filter(function (t) {
+      if (t.id === src.id) return false;
+      if (q) { if ((t.n + ' ' + t.b).toLowerCase().indexOf(q) === -1) return false; }
+      else if (state.scope === 'group' && m !== 'k' && t.g !== m) return false;
+      else if (state.scope === 'group' && m === 'k' && t.g !== src.g) return false;
+      return t[m] >= MIN_DENSITY[m];
+    }).map(function (t) {
+      var raw = equivalent(src, g, t, m);
+      if (raw === null || raw > 2500) return null;
+      var tg = roundGrams(raw);
+      var tp = portion(t, raw);
+      var deltas = others.map(function (x) { return { m: x, d: tp[x] - srcPortion[x] }; });
+      var score = deltas.reduce(function (s, d) { return s + Math.abs(d.d); }, 0);
+      return { t: t, g: tg, por: tp, deltas: deltas, score: score };
+    }).filter(Boolean).sort(function (a, b) { return a.score - b.score; });
+
+    var list = $('list');
+    if (!rows.length) {
+      list.innerHTML = '<div class="empty">No hay alimentos que encajen. Prueba con «Todos» o cambia el macro a igualar.</div>';
+      return;
+    }
+    list.innerHTML = rows.map(function (r) {
+      var tags = r.deltas.map(function (d) {
+        var ad = Math.abs(d.d);
+        if (ad < 3) return '';
+        var cls = ad >= 8 ? 'warn' : '';
+        return '<span class="tag ' + cls + '">' + (d.d > 0 ? '+' : '−') + fmt(ad) + ' g ' + MACRO[d.m] + '</span>';
+      }).join('');
+      if (!tags) tags = '<span class="tag ok">Macros parecidos</span>';
+      var ut = unitText(r.t, r.g);
+      return '<article class="item">' +
+        '<div class="name"><a href="https://es.openfoodfacts.org/producto/' + r.t.code + '" target="_blank" rel="noopener">' + r.t.n + '</a><span class="brand">' + r.t.b + '</span></div>' +
+        '<div class="g">' + fmt(r.g, 0) + '<small>g</small></div>' +
+        '<div class="meta">' + (ut ? '<span>' + ut + '</span>' : '') +
+        '<span class="mono">' + fmt(r.por.k, 0) + ' kcal · P ' + fmt(r.por.p) + ' · H ' + fmt(r.por.c) + ' · G ' + fmt(r.por.f) + '</span>' + tags + '</div>' +
+        '</article>';
+    }).join('');
+
+    try { localStorage.setItem('rodri-equivalencias', JSON.stringify({ food: state.food, grams: g, macro: state.macro, scope: state.scope })); } catch (e) { /* ignorar */ }
+  }
+
+  foodSel.addEventListener('change', function () { state.food = foodSel.value; render(); });
+  gramsIn.addEventListener('input', function () { var v = parseFloat(gramsIn.value.replace(',', '.')); if (v > 0) { state.grams = v; render(); } });
+  gramsIn.addEventListener('blur', function () { gramsIn.value = Math.max(1, Math.min(2000, Number(state.grams) || 1)); });
+  $('minus').addEventListener('click', function () { state.grams = Math.max(5, Math.round((Number(state.grams) - 5) / 5) * 5); render(); });
+  $('plus').addEventListener('click', function () { state.grams = Math.min(2000, Math.round((Number(state.grams) + 5) / 5) * 5); render(); });
+  document.querySelectorAll('#macroChips .chip').forEach(function (b) {
+    b.addEventListener('click', function () { state.macro = b.dataset.m; render(); });
+  });
+  document.querySelectorAll('.toggle button').forEach(function (b) {
+    b.addEventListener('click', function () { state.scope = b.dataset.scope; render(); });
+  });
+  $('filter').addEventListener('input', function (e) { state.filter = e.target.value; render(); });
+
+  window.__equivalent = equivalent; window.__byId = byId;
+  render();
+})();
+</script>
+
+</body>
+</html>
